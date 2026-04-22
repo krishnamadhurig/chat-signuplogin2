@@ -1,7 +1,8 @@
+
 const AUTH_URL = "http://localhost:5000/api/auth";
 const MSG_URL = "http://localhost:5000/api/messages";
 
-
+const socket = io("http://localhost:5000");
 // =======================
 // SIGNUP
 // =======================
@@ -106,8 +107,6 @@ function getUserIdFromToken() {
 
 
 // =======================
-// SEND MESSAGE (FIXED)
-// =======================
 async function sendMessage() {
   const input = document.getElementById("messageInput");
   const message = input.value.trim();
@@ -117,6 +116,7 @@ async function sendMessage() {
   const token = localStorage.getItem("token");
 
   try {
+    // 1. SAVE TO DATABASE (REST API)
     const res = await fetch(`${MSG_URL}/send`, {
       method: "POST",
       headers: {
@@ -127,40 +127,32 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-    console.log("Saved:", data);
 
     if (!res.ok) {
       alert("Failed to send message");
       return;
     }
 
-    // UI update only after success
+    // 2. SEND VIA SOCKET (REAL-TIME)
+    socket.emit("sendMessage", {
+      message,
+      userId: data.data.userId
+    });
+
+    // 3. SHOW OWN MESSAGE IN UI
     addMessageToUI(message, "sent");
 
     input.value = "";
-
-    // fake reply
-    setTimeout(() => {
-      const replies = [
-        "Hi",
-        "How are you?",
-        "Nice message",
-        "Got it!",
-        "Okay",
-        "Tell me more..."
-      ];
-
-      const randomReply =
-        replies[Math.floor(Math.random() * replies.length)];
-
-      addMessageToUI(randomReply, "received");
-    }, 800);
 
   } catch (err) {
     console.log(err);
     alert("Failed to send message");
   }
 }
+//
+socket.on("receiveMessage", (data) => {
+  addMessageToUI(data.message, "received");
+});
 
 
 // =======================
