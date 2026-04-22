@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!--  Protect route -->
+  <script>
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      alert("Please login first");
+      window.location.href = "index.html";
+    }
+  </script>
+
+</head>
+
+<body>
+
+<div class="chat-container">
+
+  <div class="chat-header">
+    <h3>Chat App</h3>
+
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div class="chat-box" id="chatBox">
+
+    <div class="message received">
+      <p>Hello</p>
+      <span>10:00 AM</span>
+    </div>
+
+    <div class="message sent">
+      <p>Hi! How are you?</p>
+      <span>10:01 AM</span>
+    </div>
+
+  </div>
+
+  <div class="chat-input">
+    <input type="text" id="messageInput" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+</div>
+
+<!-- Proper script block -->
+<script>
+  console.log("Chat page loaded");
+</script>
+
+<script src="script.js"></script>
+
+</body>
+</html>

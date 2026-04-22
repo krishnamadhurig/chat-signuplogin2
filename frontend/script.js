@@ -1,8 +1,7 @@
-// ✅ CHANGE THIS if your backend runs on a different port
 const BASE_URL = "http://localhost:5000/api/auth";
 
 
-// 🔹 SIGNUP
+//  SIGNUP
 async function signup() {
   const data = {
     name: document.getElementById("name").value.trim(),
@@ -41,7 +40,7 @@ async function signup() {
 }
 
 
-// 🔹 LOGIN
+// LOGIN
 async function login() {
   const data = {
     loginId: document.getElementById("loginId").value.trim(),
@@ -67,12 +66,13 @@ async function login() {
     if (res.ok) {
       alert(result.message || "Login successful");
 
-      // ✅ Store JWT token
+      // Store JWT token
       localStorage.setItem("token", result.token);
+      window.location.href = "chat.html";
 
       console.log("Saved Token:", result.token);
 
-      // 👉 Optional redirect
+      //  Optional redirect
       // window.location.href = "dashboard.html";
 
     } else {
@@ -84,3 +84,73 @@ async function login() {
     alert("Server error. Is backend running?");
   }
 }
+
+
+//
+// Time helper
+function getTime() {
+  const now = new Date();
+  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function sendMessage() {
+  const input = document.getElementById("messageInput");
+  const message = input.value.trim();
+
+  if (!message) return;
+
+  const chatBox = document.getElementById("chatBox");
+
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("message", "sent");
+
+  msgDiv.innerHTML = `
+    <p>${message}</p>
+    <span>${getTime()}</span>
+  `;
+
+  chatBox.appendChild(msgDiv);
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  input.value = "";
+
+  setTimeout(() => {
+    const replies = [
+  "Hi",
+  "How are you?",
+  "Nice message ",
+  "Got it!",
+  "Okay",
+  "Tell me more..."
+];
+
+const randomReply = replies[Math.floor(Math.random() * replies.length)];
+receiveMessage(randomReply);
+  }, 800);
+}
+
+function receiveMessage(text) {
+  const chatBox = document.getElementById("chatBox");
+
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("message", "received");
+
+  msgDiv.innerHTML = `
+    <p>${text}</p>
+    <span>${getTime()}</span>
+  `;
+
+  chatBox.appendChild(msgDiv);
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  window.location.href = "index.html";
+}
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") sendMessage();
+});

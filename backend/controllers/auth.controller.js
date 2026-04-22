@@ -2,7 +2,7 @@ const User = require("../models/user.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// ✅ SIGNUP
+// SIGNUP
 exports.signup = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -22,7 +22,7 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 🔐 Hash password
+    //  Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -43,7 +43,7 @@ exports.signup = async (req, res) => {
 };
 
 
-// ✅ LOGIN
+//  LOGIN
 exports.login = async (req, res) => {
   try {
     const { loginId, password } = req.body;
@@ -71,7 +71,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
-    // 🎟 JWT Token
+    //  JWT Token
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
