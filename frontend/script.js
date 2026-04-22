@@ -1,8 +1,36 @@
-
 const AUTH_URL = "http://localhost:5000/api/auth";
 const MSG_URL = "http://localhost:5000/api/messages";
 
-const socket = io("http://localhost:5000");
+let socket;
+
+// =======================
+// SOCKET INIT (AFTER LOGIN)
+// =======================
+window.onload = () => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  socket = io("http://localhost:5000", {
+    auth: { token }
+  });
+
+  // Listen for real-time messages
+  socket.on("receiveMessage", (data) => {
+    const currentUserId = getUserIdFromToken();
+
+    // prevent showing own message twice
+    if (data.userId !== currentUserId) {
+      addMessageToUI(data.message, "received", data.time);
+    }
+  });
+
+  loadMessages();
+};
+
 // =======================
 // SIGNUP
 // =======================
@@ -14,11 +42,6 @@ async function signup() {
     password: document.getElementById("password").value.trim()
   };
 
-  if (!data.name || !data.email || !data.phone || !data.password) {
-    alert("Please fill all fields");
-    return;
-  }
-
   try {
     const res = await fetch(`${AUTH_URL}/signup`, {
       method: "POST",
@@ -29,18 +52,15 @@ async function signup() {
     const result = await res.json();
 
     if (res.ok) {
-      alert(result.message || "Signup successful");
+      alert("Signup successful");
       window.location.href = "index.html";
     } else {
-      alert(result.message || "Signup failed");
+      alert(result.message);
     }
-
   } catch (err) {
     console.log(err);
-    alert("Server error");
   }
 }
-
 
 // =======================
 // LOGIN
@@ -50,11 +70,6 @@ async function login() {
     loginId: document.getElementById("loginId").value.trim(),
     password: document.getElementById("loginPassword").value.trim()
   };
-
-  if (!data.loginId || !data.password) {
-    alert("Please fill all fields");
-    return;
-  }
 
   try {
     const res = await fetch(`${AUTH_URL}/login`, {
@@ -69,43 +84,15 @@ async function login() {
       localStorage.setItem("token", result.token);
       window.location.href = "chat.html";
     } else {
-      alert(result.message || "Login failed");
+      alert(result.message);
     }
-
   } catch (err) {
     console.log(err);
-    alert("Server error");
   }
 }
 
-
 // =======================
-// TIME
-// =======================
-function getTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
-
-// =======================
-// GET USER ID FROM TOKEN
-// =======================
-function getUserIdFromToken() {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.userId;
-  } catch (err) {
-    return null;
-  }
-}
-
-
+// SEND MESSAGE
 // =======================
 async function sendMessage() {
   const input = document.getElementById("messageInput");
@@ -116,7 +103,6 @@ async function sendMessage() {
   const token = localStorage.getItem("token");
 
   try {
-    // 1. SAVE TO DATABASE (REST API)
     const res = await fetch(`${MSG_URL}/send`, {
       method: "POST",
       headers: {
@@ -133,14 +119,15 @@ async function sendMessage() {
       return;
     }
 
-    // 2. SEND VIA SOCKET (REAL-TIME)
+    // show own message
+    addMessageToUI(message, "sent");
+
+    // emit socket event
     socket.emit("sendMessage", {
       message,
-      userId: data.data.userId
+      userId: data.data.userId,
+      time: new Date()
     });
-
-    // 3. SHOW OWN MESSAGE IN UI
-    addMessageToUI(message, "sent");
 
     input.value = "";
 
@@ -149,22 +136,12 @@ async function sendMessage() {
     alert("Failed to send message");
   }
 }
-//
-socket.on("receiveMessage", (data) => {
-  addMessageToUI(data.message, "received");
-});
-
 
 // =======================
 // LOAD MESSAGES
 // =======================
 async function loadMessages() {
   const token = localStorage.getItem("token");
-
-  if (!token) {
-    window.location.href = "index.html";
-    return;
-  }
 
   try {
     const res = await fetch(MSG_URL, {
@@ -187,16 +164,13 @@ async function loadMessages() {
       addMessageToUI(msg.message, type, msg.createdAt);
     });
 
-    chatBox.scrollTop = chatBox.scrollHeight;
-
   } catch (err) {
     console.log("Load error:", err);
   }
 }
 
-
 // =======================
-// ADD MESSAGE TO UI
+// UI FUNCTION
 // =======================
 function addMessageToUI(text, type, time = null) {
   const chatBox = document.getElementById("chatBox");
@@ -213,18 +187,36 @@ function addMessageToUI(text, type, time = null) {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+// =======================
+// GET TIME
+// =======================
+function getTime() {
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+// =======================
+// DECODE TOKEN
+// =======================
+function getUserIdFromToken() {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId;
+  } catch (err) {
+    return null;
+  }
+}
 
 // =======================
 // ENTER KEY SUPPORT
 // =======================
 document.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") sendMessage();
+  if (e.key === "Enter" && document.activeElement.id === "messageInput") {
+    sendMessage();
+  }
 });
-
-
-// =======================
-// PAGE LOAD
-// =======================
-window.onload = function () {
-  loadMessages();
-};

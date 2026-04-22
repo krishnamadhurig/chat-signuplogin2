@@ -4,6 +4,7 @@ const cors = require("cors");
 const sequelize = require("./config/db");
 const http = require("http");
 const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const server = http.createServer(app);
@@ -18,19 +19,48 @@ const io = new Server(server, {
   }
 });
 
+// ==================
+// SOCKET AUTH MIDDLEWARE
+// ==================
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+      return next(new Error("No token provided"));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    socket.user = decoded; // attach user to socket
+
+    next();
+  } catch (err) {
+    console.log("Socket auth error:", err.message);
+    next(new Error("Authentication failed"));
+  }
+});
+
+// ==================
+// SOCKET CONNECTION
+// ==================
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.log("User connected:", socket.user.userId);
 
-  // listen for messages
+  // receive message from client
   socket.on("sendMessage", (data) => {
-    console.log("Message received:", data);
+    console.log("Message received from:", socket.user.userId);
 
-    // broadcast to ALL users
-    io.emit("receiveMessage", data);
+    // broadcast to all users
+    io.emit("receiveMessage", {
+      message: data.message,
+      userId: socket.user.userId,
+      time: new Date()
+    });
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+    console.log("User disconnected:", socket.user.userId);
   });
 });
 
@@ -47,7 +77,7 @@ app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/messages", require("./routes/messageRoutes"));
 
 // ==================
-// DB CONNECT
+// DATABASE CONNECTION
 // ==================
 sequelize.sync()
   .then(() => console.log("Database connected"))
@@ -56,7 +86,7 @@ sequelize.sync()
 // ==================
 // START SERVER
 // ==================
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
