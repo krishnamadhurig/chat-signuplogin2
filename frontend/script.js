@@ -92,65 +92,65 @@ function getTime() {
   const now = new Date();
   return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-function sendMessage() {
+async function sendMessage() {
   const input = document.getElementById("messageInput");
   const message = input.value.trim();
 
   if (!message) return;
 
-  const chatBox = document.getElementById("chatBox");
+  const token = localStorage.getItem("token");
 
-  const msgDiv = document.createElement("div");
-  msgDiv.classList.add("message", "sent");
+  try {
+    // 1. SEND TO BACKEND
+    const res = await fetch("http://localhost:5000/api/messages/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({
+        message: message
+      })
+      
+    });
+    console.log("STATUS:", res.status);
 
-  msgDiv.innerHTML = `
-    <p>${message}</p>
-    <span>${getTime()}</span>
-  `;
+    const data = await res.json();
+    console.log("Saved to DB:", data);
 
-  chatBox.appendChild(msgDiv);
+    // 2. UPDATE UI (sent message)
+    const chatBox = document.getElementById("chatBox");
 
-  chatBox.scrollTop = chatBox.scrollHeight;
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message", "sent");
 
-  input.value = "";
+    msgDiv.innerHTML = `
+      <p>${message}</p>
+      <span>${getTime()}</span>
+    `;
 
-  setTimeout(() => {
-    const replies = [
-  "Hi",
-  "How are you?",
-  "Nice message ",
-  "Got it!",
-  "Okay",
-  "Tell me more..."
-];
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
 
-const randomReply = replies[Math.floor(Math.random() * replies.length)];
-receiveMessage(randomReply);
-  }, 800);
+    input.value = "";
+
+    // 3. FAKE REPLY (UI ONLY)
+    setTimeout(() => {
+      const replies = [
+        "Hi",
+        "How are you?",
+        "Nice message",
+        "Got it!",
+        "Okay",
+        "Tell me more..."
+      ];
+
+      const randomReply = replies[Math.floor(Math.random() * replies.length)];
+      receiveMessage(randomReply);
+    }, 800);
+
+  } catch (err) {
+    console.log("Error sending message:", err);
+    alert("Failed to send message");
+  }
 }
-
-function receiveMessage(text) {
-  const chatBox = document.getElementById("chatBox");
-
-  const msgDiv = document.createElement("div");
-  msgDiv.classList.add("message", "received");
-
-  msgDiv.innerHTML = `
-    <p>${text}</p>
-    <span>${getTime()}</span>
-  `;
-
-  chatBox.appendChild(msgDiv);
-
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function logout() {
-  localStorage.removeItem("token");
-  window.location.href = "index.html";
-}
-
-document.addEventListener("keydown", function(e) {
-  if (e.key === "Enter") sendMessage();
-});

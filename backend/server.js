@@ -10,7 +10,13 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+const messageRoutes = require("./routes/messageRoutes");
 app.use("/api/auth", require("./routes/auth.routes"));
+
+
+app.use("/api/messages", messageRoutes);
+
+//
 
 // DB connect
 sequelize.sync()
