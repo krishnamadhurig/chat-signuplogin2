@@ -1,7 +1,10 @@
-const BASE_URL = "http://localhost:5000/api/auth";
+const AUTH_URL = "http://localhost:5000/api/auth";
+const MSG_URL = "http://localhost:5000/api/messages";
 
 
-//  SIGNUP
+// =======================
+// SIGNUP
+// =======================
 async function signup() {
   const data = {
     name: document.getElementById("name").value.trim(),
@@ -16,11 +19,9 @@ async function signup() {
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/signup`, {
+    const res = await fetch(`${AUTH_URL}/signup`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
 
@@ -34,13 +35,15 @@ async function signup() {
     }
 
   } catch (err) {
-    console.error(err);
-    alert("Server error. Is backend running?");
+    console.log(err);
+    alert("Server error");
   }
 }
 
 
+// =======================
 // LOGIN
+// =======================
 async function login() {
   const data = {
     loginId: document.getElementById("loginId").value.trim(),
@@ -53,45 +56,58 @@ async function login() {
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/login`, {
+    const res = await fetch(`${AUTH_URL}/login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
 
     const result = await res.json();
 
     if (res.ok) {
-      alert(result.message || "Login successful");
-
-      // Store JWT token
       localStorage.setItem("token", result.token);
       window.location.href = "chat.html";
-
-      console.log("Saved Token:", result.token);
-
-      //  Optional redirect
-      // window.location.href = "dashboard.html";
-
     } else {
       alert(result.message || "Login failed");
     }
 
   } catch (err) {
-    console.error(err);
-    alert("Server error. Is backend running?");
+    console.log(err);
+    alert("Server error");
   }
 }
 
 
-//
-// Time helper
+// =======================
+// TIME
+// =======================
 function getTime() {
-  const now = new Date();
-  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
+
+
+// =======================
+// GET USER ID FROM TOKEN
+// =======================
+function getUserIdFromToken() {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId;
+  } catch (err) {
+    return null;
+  }
+}
+
+
+// =======================
+// SEND MESSAGE (FIXED)
+// =======================
 async function sendMessage() {
   const input = document.getElementById("messageInput");
   const message = input.value.trim();
@@ -101,40 +117,29 @@ async function sendMessage() {
   const token = localStorage.getItem("token");
 
   try {
-    // 1. SEND TO BACKEND
-    const res = await fetch("http://localhost:5000/api/messages/send", {
+    const res = await fetch(`${MSG_URL}/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
       },
-      body: JSON.stringify({
-        message: message
-      })
-      
+      body: JSON.stringify({ message })
     });
-    console.log("STATUS:", res.status);
 
     const data = await res.json();
-    console.log("Saved to DB:", data);
+    console.log("Saved:", data);
 
-    // 2. UPDATE UI (sent message)
-    const chatBox = document.getElementById("chatBox");
+    if (!res.ok) {
+      alert("Failed to send message");
+      return;
+    }
 
-    const msgDiv = document.createElement("div");
-    msgDiv.classList.add("message", "sent");
-
-    msgDiv.innerHTML = `
-      <p>${message}</p>
-      <span>${getTime()}</span>
-    `;
-
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
+    // UI update only after success
+    addMessageToUI(message, "sent");
 
     input.value = "";
 
-    // 3. FAKE REPLY (UI ONLY)
+    // fake reply
     setTimeout(() => {
       const replies = [
         "Hi",
@@ -145,12 +150,89 @@ async function sendMessage() {
         "Tell me more..."
       ];
 
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
-      receiveMessage(randomReply);
+      const randomReply =
+        replies[Math.floor(Math.random() * replies.length)];
+
+      addMessageToUI(randomReply, "received");
     }, 800);
 
   } catch (err) {
-    console.log("Error sending message:", err);
+    console.log(err);
     alert("Failed to send message");
   }
 }
+
+
+// =======================
+// LOAD MESSAGES
+// =======================
+async function loadMessages() {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  try {
+    const res = await fetch(MSG_URL, {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    const messages = await res.json();
+
+    const chatBox = document.getElementById("chatBox");
+    chatBox.innerHTML = "";
+
+    const currentUserId = getUserIdFromToken();
+
+    messages.forEach(msg => {
+      const type =
+        msg.userId === currentUserId ? "sent" : "received";
+
+      addMessageToUI(msg.message, type, msg.createdAt);
+    });
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+  } catch (err) {
+    console.log("Load error:", err);
+  }
+}
+
+
+// =======================
+// ADD MESSAGE TO UI
+// =======================
+function addMessageToUI(text, type, time = null) {
+  const chatBox = document.getElementById("chatBox");
+
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("message", type);
+
+  msgDiv.innerHTML = `
+    <p>${text}</p>
+    <span>${time ? new Date(time).toLocaleTimeString() : getTime()}</span>
+  `;
+
+  chatBox.appendChild(msgDiv);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+
+// =======================
+// ENTER KEY SUPPORT
+// =======================
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") sendMessage();
+});
+
+
+// =======================
+// PAGE LOAD
+// =======================
+window.onload = function () {
+  loadMessages();
+};

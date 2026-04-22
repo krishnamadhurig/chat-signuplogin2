@@ -25,3 +25,16 @@ exports.sendMessage = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+exports.getMessages = async (req, res) => {
+  try {
+    const messages = await Message.findAll({
+      order: [["createdAt", "ASC"]] // oldest → newest
+    });
+
+    return res.status(200).json(messages);
+
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Error fetching messages" });
+  }
+};
